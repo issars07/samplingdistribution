@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CLT Simulator - High Fidelity Animation</title>
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --primary: #dc2626; /* Changed to Red */
+            --primary-light: #fee2e2;
+            --primary-dark: #991b1b;
+            --secondary: #64748b;
+            --accent: #e11d48;
+            --text: #0f172a;
+            --border: #e2e8f0;
+            --blue-accent: #2563eb;
+        }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        .layout-grid {
+            display: flex;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 25px;
+            max-width: 1500px;
+            width: 100%;
+        }
+        .left-col {
+            flex: 1 1 420px;
+            min-width: 320px;
+            position: sticky;
+            top: 20px;
+        }
+        .right-col {
+            flex: 1 1 480px;
+            min-width: 320px;
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        .header-controls {
+            background: var(--card);
+            padding: 24px;
+            border-radius: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            justify-content: center;
+            width: 100%;
+            border: 1px solid var(--border);
+            position: relative;
+            box-sizing: border-box;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .control-label {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        input[type="number"], select, input[type="password"] {
+            padding: 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-weight: 600;
+            outline: none;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        input:focus, select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+        }
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-primary { background: var(--primary); color: white; box-shadow: 0 4px 14px 0 rgba(220, 38, 38, 0.3); }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-1px); }
+        .btn-batch { background: #f1f5f9; color: var(--text); border: 1px solid var(--border); }
+        .btn-batch:hover { background: #e2e8f0; }
+        .btn-danger { background: #fee2e2; color: #991b1b; }
+        .btn-admin { background: #334155; color: white; margin-left: auto; }
+        #adminModal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+        }
+        .canvas-area {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05);
+            width: 100%;
+            border: 1px solid var(--border);
+            box-sizing: border-box;
+        }
+        .stage { margin-bottom: 30px; position: relative; }
+        .stage-title {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 800;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            display: flex;
+            justify-content: space-between;
+        }
+        canvas { display: block; width: 100%; height: auto; border-radius: 8px; }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 25px;
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+        }
+        .stat-item { text-align: center; }
+        .stat-val { font-weight: 900; font-size: 1.5rem; display: block; color: var(--text); }
+        .stat-lbl { font-size: 0.6rem; color: #64748b; text-transform: uppercase; font-weight: 800; }
+        .hidden { display: none !important; }
+
+        /* ── INTRO / HOW-TO-USE ── */
+        .intro-card {
+            background: var(--card);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.05);
+            width: 100%;
+            border: 1px solid var(--border);
+            box-sizing: border-box;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .intro-heading {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 800;
+            color: var(--secondary);
+            margin: 22px 0 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .intro-heading:first-child { margin-top: 0; }
+        .intro-heading::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .intro-text {
+            font-size: 0.95rem;
+            line-height: 1.65;
+            color: var(--text);
+            margin: 0;
+        }
+        .intro-steps {
+            margin: 0;
+            padding-left: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: var(--text);
+        }
+        .canvas-post {
+            margin-top: 22px;
+            padding: 18px 20px;
+            border-radius: 14px;
+            background: var(--primary-light);
+            border: 2px solid var(--primary);
+        }
+        .canvas-post .intro-heading { margin-top: 0; color: var(--primary-dark); }
+        .canvas-post .intro-heading::before { background: var(--primary-dark); }
+        .canvas-post p { margin: 0; font-size: 0.9rem; line-height: 1.6; color: var(--text); }
+        .canvas-post ol { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem; line-height: 1.6; color: var(--text); }
+    </style>
+</head>
+<body>
+<div class="layout-grid">
+<div class="left-col">
+<div class="intro-card">
+    <h2 class="intro-heading">About This Activity</h2>
+    <p class="intro-text">This activity demonstrates the Central Limit Theorem in action. Pick a parent population, draw repeated samples, and watch the distribution of sample means gradually take on a normal shape — no matter what the original population looked like.</p>
+
+    <h2 class="intro-heading">How to Use This Lab</h2>
+    <ol class="intro-steps">
+        <li><b>Start with the defaults.</b> Leave the distribution and sample size at their default settings, then click "Grab One Sample" to watch a single sample get drawn and its mean animate into the sampling distribution below, or click "Grab Batch" to quickly generate many sample means at once.</li>
+        <li><b>Observe the pattern.</b> Watch the sampling distribution (bottom histogram) take shape as sample means accumulate — notice its overall shape, center, and spread.</li>
+        <li><b>Increase the sample size.</b> Reset, then run the same distribution again at increasing sample sizes (e.g., n = 10, n = 15, then n = 50). Compare how quickly the sampling distribution takes on a bell shape at each size.</li>
+        <li><b>Switch distributions.</b> Change the parent distribution (try Uniform, Normal, Exponential, and Bimodal) and repeat the process. Compare how fast each distribution's sampling distribution converges to a bell shape.</li>
+    </ol>
+
+    <div class="canvas-post">
+        <h2 class="intro-heading">Post on Canvas</h2>
+        <ol>
+            <li>As you increased the sample size (n = 10, 15, 50), what happened to the shape of the sampling distribution, and why do you think that occurs?</li>
+            <li>Which parent distribution took the longest to look bell-shaped, and why do you think that is? </li>
+        </ol>
+    </div>
+</div>
+</div>
+<div class="right-col">
+<div class="header-controls">
+    <div class="control-group">
+        <label class="control-label">Distribution</label>
+        <select id="dist" onchange="resetAll()">
+            <option value="uniform">Uniform</option>
+            <option value="normal">Normal</option>
+            <option value="exp">Exponential</option>
+            <option value="bimodal">Bimodal</option>
+        </select>
+    </div>
+    <div class="control-group">
+        <label class="control-label">Sample Size </label>
+        <input type="number" id="nSize" value="5" min="1" max="50" style="width: 80px;">
+    </div>
+    <div class="control-group">
+        <label class="control-label">Batch Size</label>
+        <input type="number" id="mBatch" value="100" min="1" max="1000" style="width: 80px;">
+    </div>
+
+    <button class="btn btn-primary" onclick="startSingleSample()">Grab One Sample</button>
+    <button class="btn btn-batch" onclick="runBatch()">Grab Batch</button>
+    <button class="btn btn-danger" onclick="resetAll()">Reset</button>
+
+    <button class="btn btn-admin" onclick="openAdmin()">Admin</button>
+</div>
+<div class="canvas-area">
+    <div class="stage">
+        <div class="stage-title"><span>1. Parent Population</span></div>
+        <canvas id="topCanvas" width="800" height="130"></canvas>
+    </div>
+
+    <div class="stage">
+        <div class="stage-title"><span>2. Current Sample</span><span id="sampleMeanText" style="color:var(--primary); font-family: monospace;"></span></div>
+        <canvas id="midCanvas" width="800" height="120"></canvas>
+    </div>
+
+    <div class="stage">
+        <div class="stage-title"><span>3. Sampling Distribution</span><span id="totalSamplesText" style="font-family: monospace;"></span></div>
+        <canvas id="botCanvas" width="800" height="280"></canvas>
+    </div>
+    <div class="stats">
+        <div class="stat-item"><span class="stat-lbl">Trials</span><span id="statCount" class="stat-val">0</span></div>
+        <div class="stat-item"><span class="stat-lbl">Mean of Means</span><span id="statMean" class="stat-val">0.00</span></div>
+        <div class="stat-item"><span class="stat-lbl">Std. Error</span><span id="statSE" class="stat-val">0.00</span></div>
+    </div>
+</div>
+</div>
+</div>
+<div id="adminModal">
+    <div class="modal-content" id="adminLogin">
+        <h2 style="margin-top: 0;">Admin Access</h2>
+        <div class="control-group" style="margin-bottom: 20px;">
+            <label class="control-label">Password</label>
+            <input type="password" id="adminPass" placeholder="Enter password...">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn btn-primary" style="flex:1" onclick="checkPass()">Login</button>
+            <button class="btn btn-batch" onclick="closeAdmin()">Cancel</button>
+        </div>
+    </div>
+    <div class="modal-content hidden" id="adminSettings">
+        <h2 style="margin-top: 0;">Admin Settings</h2>
+        <div class="control-group" style="margin-bottom: 20px;">
+            <label class="control-label">Range Max Value</label>
+            <input type="number" id="xMax" value="1000" min="100" max="5000" step="100" onchange="resetAll()">
+            <p style="font-size: 11px; color: #64748b; margin-top: 8px;">Changing this resets all current simulation data.</p>
+        </div>
+        <button class="btn btn-primary" style="width: 100%" onclick="closeAdmin()">Done</button>
+    </div>
+</div>
+<script>
+const topCanvas = document.getElementById('topCanvas');
+const midCanvas = document.getElementById('midCanvas');
+const botCanvas = document.getElementById('botCanvas');
+const topCtx = topCanvas.getContext('2d');
+const midCtx = midCanvas.getContext('2d');
+const botCtx = botCanvas.getContext('2d');
+let sampleMeans = [];
+let activeAnimationId = null;
+let resolvePendingAnim = null;
+const THEME_PRIMARY = "#dc2626"; // Red
+const THEME_ACCENT = "#2563eb"; // Blue for data points
+function openAdmin() {
+    document.getElementById('adminModal').style.display = 'flex';
+    document.getElementById('adminLogin').classList.remove('hidden');
+    document.getElementById('adminSettings').classList.add('hidden');
+    document.getElementById('adminPass').value = '';
+    document.getElementById('adminPass').focus();
+}
+function checkPass() {
+    if (document.getElementById('adminPass').value === 'admin') {
+        document.getElementById('adminLogin').classList.add('hidden');
+        document.getElementById('adminSettings').classList.remove('hidden');
+    } else {
+        const input = document.getElementById('adminPass');
+        input.style.borderColor = 'var(--accent)';
+        setTimeout(() => input.style.borderColor = '#cbd5e1', 500);
+    }
+}
+function closeAdmin() {
+    document.getElementById('adminModal').style.display = 'none';
+}
+const getXMax = () => parseInt(document.getElementById('xMax').value) || 1000;
+const scaleX = (val) => (val / getXMax()) * 800;
+const genNormal = (mean, std) => {
+    let u=0, v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+    return (Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v) * std) + mean;
+};
+const gen = {
+    uniform: () => Math.random() * (getXMax() * 0.8) + (getXMax() * 0.1),
+    normal: () => genNormal(getXMax() * 0.5, getXMax() * 0.12),
+    exp: () => (-Math.log(1 - Math.random()) * (getXMax() * 0.15)) + (getXMax() * 0.05),
+    bimodal: () => {
+        const xMax = getXMax();
+        const std = xMax * 0.07;
+        return (Math.random() > 0.5) ? genNormal(xMax * 0.3, std) : genNormal(xMax * 0.7, std);
+    }
+};
+function drawAxis(ctx, y) {
+    const xMax = getXMax();
+    ctx.beginPath();
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1;
+    ctx.moveTo(0, y);
+    ctx.lineTo(800, y);
+    ctx.stroke();
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "bold 10px Inter";
+    ctx.textAlign = "center";
+    const step = xMax / 10;
+    for(let i=0; i<=10; i++) {
+        const val = Math.round(i * step);
+        const x = scaleX(val);
+        ctx.fillRect(x, y, 1, 4);
+        ctx.fillText(val, x, y + 18);
+    }
+}
+function drawInvertedTriangle(ctx, x, y, size, color) {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - size, y - size * 1.5);
+    ctx.lineTo(x + size, y - size * 1.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+function drawPopulation() {
+    topCtx.clearRect(0,0,800,130);
+    drawAxis(topCtx, 100);
+    const type = document.getElementById('dist').value;
+    const bins = new Array(100).fill(0);
+    for(let i=0; i<8000; i++) {
+        let val = gen[type]();
+        let b = Math.floor((val / getXMax()) * 100);
+        if(b >= 0 && b < 100) bins[b]++;
+    }
+    const maxVal = Math.max(...bins);
+    topCtx.fillStyle = "#e2e8f0";
+    bins.forEach((h, i) => {
+        if(h > 0) {
+            const x = (i / 100) * 800;
+            const bh = (h / maxVal) * 80;
+            topCtx.fillRect(x, 100 - bh, 7, bh);
+        }
+    });
+}
+function cancelActiveAnimation() {
+    if (activeAnimationId) { cancelAnimationFrame(activeAnimationId); activeAnimationId = null; }
+    if (resolvePendingAnim) { resolvePendingAnim(true); resolvePendingAnim = null; }
+}
+async function startSingleSample() {
+    cancelActiveAnimation();
+    const n = parseInt(document.getElementById('nSize').value) || 1;
+    const type = document.getElementById('dist').value;
+    let sample = Array.from({length: n}, () => gen[type]());
+    let mean = sample.reduce((a,b) => a+b, 0) / n;
+    midCtx.clearRect(0,0,800,120);
+    drawAxis(midCtx, 90);
+    // Keep data points blue for contrast with the red mean
+    await animateDropPoints(sample, midCtx, THEME_ACCENT, -20, 88, 6);
+
+    // Mean triangle is now Red
+    drawInvertedTriangle(midCtx, scaleX(mean), 90, 10, THEME_PRIMARY);
+    document.getElementById('sampleMeanText').innerText = `Mean: ${mean.toFixed(1)}`;
+    await animateMeanFall(mean, botCtx, -40, 250);
+    sampleMeans.push(mean);
+    updateStats();
+    drawHistogram();
+}
+function animateDropPoints(values, ctx, color, startY, endY, speed) {
+    return new Promise(resolve => {
+        resolvePendingAnim = resolve;
+        let currentY = startY;
+        function step() {
+            ctx.clearRect(0, 0, 800, 89);
+            currentY += speed;
+            values.forEach(v => {
+                ctx.beginPath();
+                ctx.arc(scaleX(v), currentY, 5, 0, Math.PI*2);
+                ctx.fillStyle = color; ctx.fill();
+                ctx.strokeStyle = "white"; ctx.stroke();
+            });
+            if(currentY < endY) activeAnimationId = requestAnimationFrame(step);
+            else { activeAnimationId = null; resolve(false); }
+        }
+        activeAnimationId = requestAnimationFrame(step);
+    });
+}
+function animateMeanFall(val, ctx, startY, endY) {
+    return new Promise(resolve => {
+        resolvePendingAnim = resolve;
+        let currentY = startY;
+        function step() {
+            ctx.clearRect(0, 0, 800, 249);
+            drawHistogram(false);
+            currentY += 8;
+            // Falling mean triangle is Red
+            drawInvertedTriangle(ctx, scaleX(val), currentY, 12, THEME_PRIMARY);
+            if(currentY < endY) activeAnimationId = requestAnimationFrame(step);
+            else { activeAnimationId = null; resolve(false); }
+        }
+        activeAnimationId = requestAnimationFrame(step);
+    });
+}
+function drawHistogram(includeAxes = true) {
+    if(includeAxes) { botCtx.clearRect(0, 0, 800, 280); drawAxis(botCtx, 250); }
+    if (sampleMeans.length === 0) return;
+    const binCount = 80;
+    const bins = new Array(binCount).fill(0);
+    const binSize = getXMax() / binCount;
+    sampleMeans.forEach(m => {
+        const idx = Math.floor(m / binSize);
+        if(idx >= 0 && idx < binCount) bins[idx]++;
+    });
+    const maxFreq = Math.max(...bins, 1);
+    // Bottom histogram is now Red
+    botCtx.fillStyle = "rgba(220, 38, 38, 0.6)";
+    bins.forEach((count, i) => {
+        if(count > 0) {
+            const h = (count / (maxFreq * 1.1)) * 200;
+            botCtx.fillRect((i/binCount)*800, 250 - h, (800/binCount)-1, h);
+        }
+    });
+}
+function runBatch() {
+    cancelActiveAnimation();
+    const n = parseInt(document.getElementById('nSize').value) || 5;
+    const m = parseInt(document.getElementById('mBatch').value) || 100;
+    const type = document.getElementById('dist').value;
+    for(let i=0; i<m; i++) {
+        let sum = 0;
+        for(let j=0; j<n; j++) sum += gen[type]();
+        sampleMeans.push(sum / n);
+    }
+    midCtx.clearRect(0,0,800,120);
+    drawAxis(midCtx, 90);
+    updateStats();
+    drawHistogram();
+}
+function updateStats() {
+    const count = sampleMeans.length;
+    if(count === 0) {
+        document.getElementById('statCount').innerText = "0";
+        document.getElementById('statMean').innerText = "0.00";
+        document.getElementById('statSE').innerText = "0.00";
+        document.getElementById('totalSamplesText').innerText = "";
+        return;
+    }
+    const mean = sampleMeans.reduce((a,b) => a+b, 0) / count;
+    const variance = sampleMeans.reduce((a,b) => a + Math.pow(b - mean, 2), 0) / count;
+    document.getElementById('statCount').innerText = count.toLocaleString();
+    document.getElementById('statMean').innerText = mean.toFixed(2);
+    document.getElementById('statSE').innerText = Math.sqrt(variance).toFixed(2);
+    document.getElementById('totalSamplesText').innerText = `Samples: ${count}`;
+}
+function resetAll() {
+    cancelActiveAnimation();
+    sampleMeans = [];
+    midCtx.clearRect(0,0,800,120);
+    botCtx.clearRect(0,0,800,280);
+    document.getElementById('sampleMeanText').innerText = "";
+    updateStats();
+    drawPopulation();
+    drawAxis(midCtx, 90);
+    drawAxis(botCtx, 250);
+}
+document.getElementById('adminPass').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') checkPass();
+});
+window.onload = resetAll;
+</script>
+</body>
+</html>
